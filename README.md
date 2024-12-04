@@ -10,7 +10,7 @@ language models. Use it to isolate model behavior via classification tasks.
   regression
 + Simultaneous, online training for multiple probes with minimal overhead for
   activation caches
-+ Pre/post-processing for model activations (probes default to mean pooling)
++ Pre-/post-processing for model activations (probes default to mean pooling)
 + Metrics tracking for probe performance
 
 Probes are trained using [`scikit-learn`][scikit]'s `SGDClassifier`. The tool
@@ -146,7 +146,7 @@ config = ProbeConfig(submodule, classes)
 
 **Training**
 
-Use a `ProbeRunner` to train the probe. It will handle pre-/postprocessing for
+Use a `ProbeRunner` to train the probe. It will handle pre-/post-processing for
 activations as well as the control flow for batching, evaluation, early
 stopping, etc.
 

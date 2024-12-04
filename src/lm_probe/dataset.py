@@ -1,4 +1,3 @@
-from typing import Self
 
 import torch
 from torch.utils.data import Dataset, random_split
