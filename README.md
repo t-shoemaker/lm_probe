@@ -103,34 +103,37 @@ you'd write `transformer.h.5.mlp.output`.
 
 ```py
 gpt2
->> GPT2LMHeadModel(
->>   (transformer): GPT2Model(
->>     (wte): Embedding(50257, 768)
->>     (wpe): Embedding(1024, 768)
->>     (drop): Dropout(p=0.1, inplace=False)
->>     (h): ModuleList(
->>       (0-11): 12 x GPT2Block(
->>         (ln_1): LayerNorm((768,), eps=1e-05, elementwise_affine=True)
->>         (attn): GPT2SdpaAttention(
->>           (c_attn): Conv1D()
->>           (c_proj): Conv1D()
->>           (attn_dropout): Dropout(p=0.1, inplace=False)
->>           (resid_dropout): Dropout(p=0.1, inplace=False)
->>         )
->>         (ln_2): LayerNorm((768,), eps=1e-05, elementwise_affine=True)
->>         (mlp): GPT2MLP(
->>           (c_fc): Conv1D()
->>           (c_proj): Conv1D()
->>           (act): NewGELUActivation()
->>           (dropout): Dropout(p=0.1, inplace=False)
->>         )
->>       )
->>     )
->>     (ln_f): LayerNorm((768,), eps=1e-05, elementwise_affine=True)
->>   )
->>   (lm_head): Linear(in_features=768, out_features=50257, bias=False)
->>   (generator): WrapperModule()
->> )
+```
+
+```console
+GPT2LMHeadModel(
+  (transformer): GPT2Model(
+    (wte): Embedding(50257, 768)
+    (wpe): Embedding(1024, 768)
+    (drop): Dropout(p=0.1, inplace=False)
+    (h): ModuleList(
+      (0-11): 12 x GPT2Block(
+        (ln_1): LayerNorm((768,), eps=1e-05, elementwise_affine=True)
+        (attn): GPT2SdpaAttention(
+          (c_attn): Conv1D()
+          (c_proj): Conv1D()
+          (attn_dropout): Dropout(p=0.1, inplace=False)
+          (resid_dropout): Dropout(p=0.1, inplace=False)
+        )
+        (ln_2): LayerNorm((768,), eps=1e-05, elementwise_affine=True)
+        (mlp): GPT2MLP(
+          (c_fc): Conv1D()
+          (c_proj): Conv1D()
+          (act): NewGELUActivation()
+          (dropout): Dropout(p=0.1, inplace=False)
+        )
+      )
+    )
+    (ln_f): LayerNorm((768,), eps=1e-05, elementwise_affine=True)
+  )
+  (lm_head): Linear(in_features=768, out_features=50257, bias=False)
+  (generator): WrapperModule()
+)
 ```
 
 Assign that submodule name to the first argument of a `ProbeConfig` along with
@@ -153,8 +156,11 @@ stopping, etc.
 ```py
 runner = ProbeRunner(gpt2, [config])
 runner.fit_probes(train_set, test_set, batch_size=8)
->> 2024-12-04 09:47:11 | INFO | Early stopping after 18 steps for transformer.h.5.mlp.output
->> 2024-12-04 09:47:11 | INFO | Finished training 1 probe(s). Computing metrics
+```
+
+```console
+2024-12-04 09:47:11 | INFO | Early stopping after 18 steps for transformer.h.5.mlp.output
+2024-12-04 09:47:11 | INFO | Finished training 1 probe(s). Computing metrics
 ```
 
 Inspect the results with the `.metrics` attribute. This holds a DataFrame of 
@@ -162,8 +168,11 @@ metrics, which record a probe's performance on the testing set.
 
 ```py
 print(runner.metrics.to_string())
->>                                 loss  accuracy  precision    recall        f1  matthews
->> transformer.h.5.mlp.output  4.505457     0.875   0.881834  0.875941  0.874613  0.757752
+```
+
+```console
+                                loss  accuracy  precision    recall        f1  matthews
+transformer.h.5.mlp.output  4.505457     0.875   0.881834  0.875941  0.874613  0.757752
 ```
 
 
@@ -176,7 +185,10 @@ some input and returns them in a simple dictionary.
 docs = test_set[0:5]
 features = runner.get_probe_features(docs["input_ids"], docs["attention_mask"])
 features[submodule].shape
->> (5, 768)
+```
+
+```console
+(5, 768)
 ```
 
 Index a `ProbeRunner` by a submodule to get the corresponding probe. With that,
@@ -185,7 +197,10 @@ you can make a prediction on features.
 ```py
 probe = runner[submodule]
 probe.predict(features[submodule])
->> array([0, 1, 0, 0, 0])
+```
+
+```console
+array([0, 1, 0, 0, 0])
 ```
 
 
@@ -229,10 +244,13 @@ Time to train.
 ```py
 runner = ProbeRunner(gpt2, configs)
 runner.fit_probes(train_set, test_set, batch_size=8)
->> 2024-12-04 09:50:59 | INFO | Early stopping after 38 steps for transformer.h.4.mlp.output
->> 2024-12-04 09:51:28 | INFO | Early stopping after 42 steps for transformer.h.7.attn.output
->> 2024-12-04 09:51:58 | INFO | Early stopping after 46 steps for transformer.h.11.output
->> 2024-12-04 09:51:58 | INFO | Finished training 3 probe(s). Computing metrics
+```
+
+```console
+2024-12-04 09:50:59 | INFO | Early stopping after 38 steps for transformer.h.4.mlp.output
+2024-12-04 09:51:28 | INFO | Early stopping after 42 steps for transformer.h.7.attn.output
+2024-12-04 09:51:58 | INFO | Early stopping after 46 steps for transformer.h.11.output
+2024-12-04 09:51:58 | INFO | Finished training 3 probe(s). Computing metrics
 ```
 
 Which set of model activations leads to the most accurate classification?
@@ -243,8 +261,11 @@ print(
     .sort_values(["loss", "matthews"], ascending=[True, False])
     .to_string()
 )
->>                                   loss  accuracy  precision    recall        f1  matthews
->> transformer.h.11.output       6.590683  0.815217   0.814490  0.815834  0.814774  0.630322
->> transformer.h.4.mlp.output    6.870814  0.807065   0.806108  0.807062  0.806435  0.613169
->> transformer.h.7.attn.output  11.722360  0.668478   0.673981  0.672990  0.668390  0.346969
+```
+
+```console
+                                  loss  accuracy  precision    recall        f1  matthews
+transformer.h.11.output       6.590683  0.815217   0.814490  0.815834  0.814774  0.630322
+transformer.h.4.mlp.output    6.870814  0.807065   0.806108  0.807062  0.806435  0.613169
+transformer.h.7.attn.output  11.722360  0.668478   0.673981  0.672990  0.668390  0.346969
 ```
