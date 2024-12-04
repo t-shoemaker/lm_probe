@@ -15,7 +15,7 @@ class SubmoduleFeatures:
 
     @property
     def is_tuple_output(self) -> bool:
-        """Check if the original output was a tuple of tensors."""
+        """Check if the original Envoy output was a tuple of tensors."""
         return not isinstance(self.features.shape, torch.Size)
 
     def get_hidden_state(self) -> torch.Tensor:
@@ -26,7 +26,7 @@ class SubmoduleFeatures:
 class FeatureExtractor:
     """Extractor for a LanguageModel's submodule features."""
 
-    def __init__(self, model: LanguageModel):
+    def __init__(self, model: LanguageModel) -> None:
         """Initialize the extractor.
 
         Parameters
@@ -104,7 +104,7 @@ class FeatureExtractor:
 
         return pooled_features
 
-    def get_feature(self, submodule_name: str) -> Optional[SubmoduleFeatures]:
+    def get_features(self, submodule_name: str) -> Optional[SubmoduleFeatures]:
         """Get features by submodule name.
 
         Parameters
@@ -127,9 +127,9 @@ class FeatureExtractor:
 def get_submodule(
     model: LanguageModel, submodule_name: str, sep: str = "."
 ) -> Envoy:
-    """Get a submodule from the language model.
+    """Get a submodule from the LanguageModel.
 
-    Submodule are in the format <module><sep><module>...
+    Submodule names are in the format <module><sep><module>...
 
     Parameters
     ----------

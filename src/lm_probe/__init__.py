@@ -1,5 +1,12 @@
 from .probe import LinearProbe, ProbeConfig
-from .dataset import ProbeDataset
 from .runner import ProbeRunner
+from .dataset import ProbeDataset
+from .extractor import FeatureExtractor
 
-__all__ = ["LinearProbe", "ProbeConfig", "ProbeDataset", "ProbeRunner"]
+__all__ = [
+    "LinearProbe",
+    "ProbeConfig",
+    "ProbeRunner",
+    "ProbeDataset",
+    "FeatureExtractor",
+]
