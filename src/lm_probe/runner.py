@@ -1,11 +1,10 @@
 from dataclasses import dataclass
-from typing import Optional, Self
+from typing import TYPE_CHECKING, Optional, Self
 
 import torch
 import numpy as np
 from numpy.typing import NDArray
 import pandas as pd
-from nnsight import LanguageModel
 from torch.utils.data import DataLoader
 
 from .probe import LinearProbe, ProbeConfig
@@ -13,6 +12,9 @@ from .extractor import FeatureExtractor
 from .dataset import ProbeDataset
 from .metrics import Metrics
 from .utils import setup_logger
+
+if TYPE_CHECKING:
+    from nnsight import LanguageModel
 
 
 @dataclass

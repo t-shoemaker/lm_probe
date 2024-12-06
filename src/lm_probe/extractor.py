@@ -1,9 +1,11 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import torch
-from nnsight import LanguageModel
-from nnsight.envoy import Envoy
+
+if TYPE_CHECKING:
+    from nnsight import LanguageModel
+    from nnsight.envoy import Envoy
 
 
 @dataclass
