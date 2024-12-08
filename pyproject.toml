@@ -17,16 +17,13 @@ platforms = ["linux-64", "osx-arm64", "osx-64"]
 lm_probe = { path = ".", editable = true }
 nnsight = ">=0.3.7,<0.4"
 
-[tool.pixi.tasks]
-typecheck = "pixi run mypy src/*"
-
 [tool.pixi.dependencies]
 pytorch = ">=2.5.0,<3"
 torchvision = ">=0.20.1,<0.21"
 transformers = ">=4.46.3,<5"
 sentencepiece = ">=0.2.0,<0.3"
 scikit-learn = ">=1.5.2,<2"
-mypy = ">=1.13.0,<2"
+ipykernel = "*"
 
 [[tool.mypy.overrides]]
 module = "lm_probe.*"

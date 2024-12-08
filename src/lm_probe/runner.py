@@ -32,7 +32,7 @@ class ProbeRunner:
     logger = setup_logger(__name__)
 
     def __init__(
-        self, model: LanguageModel, probe_configs: list[ProbeConfig]
+        self, model: "LanguageModel", probe_configs: list[ProbeConfig]
     ) -> None:
         """Initialize the runner.
 

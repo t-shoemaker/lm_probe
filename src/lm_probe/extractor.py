@@ -28,7 +28,7 @@ class SubmoduleFeatures:
 class FeatureExtractor:
     """Extractor for a LanguageModel's submodule features."""
 
-    def __init__(self, model: LanguageModel) -> None:
+    def __init__(self, model: "LanguageModel") -> None:
         """Initialize the extractor.
 
         Parameters
@@ -127,8 +127,8 @@ class FeatureExtractor:
 
 
 def get_submodule(
-    model: LanguageModel, submodule_name: str, sep: str = "."
-) -> Envoy:
+    model: "LanguageModel", submodule_name: str, sep: str = "."
+) -> "Envoy":
     """Get a submodule from the LanguageModel.
 
     Submodule names are in the format <module><sep><module>...
