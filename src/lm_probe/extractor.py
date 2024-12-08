@@ -45,7 +45,8 @@ class FeatureExtractor:
         submodules: list[str],
         input_ids: torch.Tensor,
         attention_mask: Optional[torch.Tensor] = None,
-        pool: bool = False,
+        pool: bool = True,
+        cache: bool = False,
     ) -> dict[str, torch.Tensor]:
         """Extract hidden state features from submodules.
 
@@ -59,6 +60,8 @@ class FeatureExtractor:
             Attention mask for pooling, required for pooling
         pool : bool
             Whether to mean pool 3D features
+        cache : bool
+            Whether to cache features for the input_ids
 
         Returns
         -------
@@ -85,10 +88,12 @@ class FeatureExtractor:
             submodule_name: feat.get_hidden_state()
             for submodule_name, feat in self.features.items()
         }
-        self.clear_features()
 
         if not pool:
             return features
+
+        if not cache:
+            self.clear_features()
 
         pooled_features = {}
         for submodule_name, feat in features.items():
@@ -118,7 +123,15 @@ class FeatureExtractor:
         -------
         SubmoduleFeatures, optional
             The features
+
+        Raises
+        ------
+        ValueError
+            If there are no features cached for the submodule
         """
+        if not self.features:
+            ValueError(f"No features cached for {submodule_name}")
+
         return self.features.get(submodule_name)
 
     def clear_features(self):

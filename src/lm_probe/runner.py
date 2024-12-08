@@ -110,6 +110,7 @@ class ProbeRunner:
             input_ids,
             attention_mask=attention_mask,
             pool=True,
+            cache=False,
         )
 
         return {
