@@ -77,9 +77,9 @@ class FeatureExtractor:
         if pool and attention_mask is None:
             raise ValueError("Attention mask required for mean pooling")
 
-        with self.model.trace(input_ids) as model:
+        with self.model.trace(input_ids):
             for submodule_name in submodules:
-                feat = get_submodule(model, submodule_name).save()
+                feat = self.model.get(submodule_name).save()
                 self.features[submodule_name] = SubmoduleFeatures(
                     name=submodule_name, features=feat
                 )
@@ -137,47 +137,6 @@ class FeatureExtractor:
     def clear_features(self):
         """Clear all stored features."""
         self.features.clear()
-
-
-def get_submodule(
-    model: "LanguageModel", submodule_name: str, sep: str = "."
-) -> "Envoy":
-    """Get a submodule from the LanguageModel.
-
-    Submodule names are in the format <module><sep><module>...
-
-    Parameters
-    ----------
-    model : LanguageModel
-        The model
-    submodule_name : str
-        Stringified name of the submodule
-    sep : str
-        Separator character for submodule components
-
-    Returns
-    -------
-    Envoy
-        The submodule
-
-    Raises
-    ------
-    AttributeError
-        If the model does not have a requested submodule component
-    """
-    modules = submodule_name.split(sep)
-    submodule = model
-    while len(modules) > 0:
-        module, *_ = modules
-        if not hasattr(submodule, module):
-            raise AttributeError(
-                f"Couldn't access module '{module}' for {submodule_name}"
-            )
-
-        submodule = getattr(submodule, module)
-        modules.pop(0)
-
-    return submodule
 
 
 def mean_pool(
