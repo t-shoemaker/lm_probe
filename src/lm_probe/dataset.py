@@ -1,5 +1,10 @@
 import torch
-from torch.utils.data import Dataset, random_split, Subset
+from typing import TYPE_CHECKING
+
+from torch.utils.data import Dataset, random_split
+
+if TYPE_CHECKING:
+    from torch.utils.data import Subset
 
 
 class ProbeDataset(Dataset):

@@ -5,7 +5,6 @@ import torch
 
 if TYPE_CHECKING:
     from nnsight import LanguageModel
-    from nnsight.envoy import Envoy
 
 
 @dataclass
