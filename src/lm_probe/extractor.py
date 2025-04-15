@@ -79,6 +79,8 @@ class FeatureExtractor:
         if pool and attention_mask is None:
             raise ValueError("Attention mask required for mean pooling")
 
+        # Set up a tracer with nnsight and march through each of the model
+        # submodules to extract features
         with self.model.trace(input_ids, remote=self.remote):
             for submodule_name in submodules:
                 feat = self.model.get(submodule_name).save()
@@ -86,17 +88,23 @@ class FeatureExtractor:
                     name=submodule_name, features=feat
                 )
 
+        # Pluck the hidden states from each submodule feature set. This must be
+        # done outside the context manager because nnsight won't have executed
+        # the forward pass yet
         features = {
             submodule_name: feat.get_hidden_state()
             for submodule_name, feat in self.features.items()
         }
 
+        # Are we providing features for every token?
         if not pool:
             return features
 
+        # Are we keeping features?
         if not cache:
             self.clear_features()
 
+        # Do mean pooling on the features
         pooled_features = {}
         for submodule_name, feat in features.items():
             ndim = feat.ndim

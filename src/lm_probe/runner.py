@@ -48,10 +48,13 @@ class ProbeRunner:
         remote : bool
             Whether to run the model remotely on NDIF (requires API key)
         """
+        # Initialize the LanguageModel and FeatureExtracto
         self.model: LanguageModel = model
         self.feature_extractor: FeatureExtractor = FeatureExtractor(
             model, remote=remote
         )
+
+        # Set up the probes
         self.probes: list[LinearProbe] = [
             LinearProbe(config) for config in probe_configs
         ]
@@ -59,6 +62,8 @@ class ProbeRunner:
         self._probe_map = {
             probe.submodule: idx for idx, probe in enumerate(self.probes)
         }
+
+        # Set up metrics tracking
         self.metrics: Optional[pd.DataFrame] = None
 
     def __repr__(self) -> str:
@@ -149,26 +154,37 @@ class ProbeRunner:
             Limit evaluation batches to the maximum number of batches seen
             while fitting
         """
+        # For num_epochs...
         batch_count = 0
         for epoch in range(num_epoch):
+            # Set up a DataLoader to batch out spans
             dataloader = DataLoader(train_set, batch_size=batch_size)
+
+            # For every batch...
             for batch in dataloader:
+                # Do we have trainable probes?
                 if not any(probe.is_trainable for probe in self.probes):
                     break
 
+                # Get probe features for the batch
                 features = self.get_probe_features(
                     batch["input_ids"], batch["attention_mask"]
                 )
                 labels = batch["labels"].numpy()
 
+                # For every probe...
                 for probe in self.probes:
+                    # Can we train?
                     if not probe.is_trainable:
                         continue
 
+                    # If so, take a step
                     probe.take_step(features[probe.submodule], labels)
 
                 batch_count += 1
 
+            # End training before num_epochs is exceeded if there aren't any
+            # trainable probes
             if not any(probe.is_trainable for probe in self.probes):
                 break
 
@@ -177,7 +193,11 @@ class ProbeRunner:
             len(self.probes),
         )  # type: ignore[attr-defined]
 
+        # Optionally limit the evaluation batches to the number of batches seen
+        # during training
         batch_limit = batch_count if limit_eval_batches else None
+
+        # Compute metrics
         self.metrics = self.compute_metrics(
             eval_set, batch_size=batch_size, batch_limit=batch_limit
         )
@@ -210,16 +230,22 @@ class ProbeRunner:
             module: [] for module in self.submodules
         }
 
+        # Set up a DataLoader to batch out features
         dataloader = DataLoader(dataset, batch_size=batch_size)
+
+        # For each batch...
         for idx, batch in enumerate(dataloader):
+            # Have we exceeded the batch limit?
             if batch_limit and idx >= batch_limit:
                 break
 
+            # Get the batch's features
             features = self.get_probe_features(
                 batch["input_ids"], batch["attention_mask"]
             )
             labels = batch["labels"].numpy()
 
+            # Make predictions for each probe
             for probe in self.probes:
                 name = probe.submodule
                 results[name].append(
@@ -230,6 +256,7 @@ class ProbeRunner:
                     )
                 )
 
+        # For each probe, calculate average predictions across all batches
         metrics_df = []
         for probe in self.probes:
             name = probe.submodule

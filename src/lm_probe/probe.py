@@ -66,11 +66,13 @@ class LinearProbe:
         config : ProbeConfig
             Probe configuration
         """
+        # Initialize the model
         self.model: SGDClassifier = SGDClassifier(
             loss="log_loss", **config.model_kwargs
         )
         self.scaler: StandardScaler = StandardScaler()
 
+        # Set up probe info
         self.submodule: str = config.submodule
         self.classes: NDArray[np.integer] = np.fromiter(config.classes, int)
         self.test_size: float = config.test_size
@@ -78,6 +80,7 @@ class LinearProbe:
             train_test_split, test_size=config.test_size
         )
 
+        # Set up training info
         self.max_steps: int = config.max_steps
         self.early_stopping: bool = config.early_stopping
         self.warmup_steps: int = config.warmup_steps
@@ -85,6 +88,7 @@ class LinearProbe:
             config.patience, False, config.threshold
         )
 
+        # Set up training metadata
         self.is_trainable: bool = True
         self.stopped_early: bool = False
         self.steps_taken: int = 0
@@ -122,7 +126,11 @@ class LinearProbe:
             self.logger.warning("Probe is no longer trainable")  # type: ignore[attr-defined]
             return self
 
+        # Trainable probes take two kinds of incremental steps: one that fits
+        # on the entirey of a batch's data and one that does a train/test split
         match (self.early_stopping, self.steps_taken > self.warmup_steps):
+            # If we aren't doing early stopping or we haven't reached our
+            # warmup stems, fit on the whole batch
             case (False, _) | (True, False):
                 self.scaler.partial_fit(X)
                 X = self.scaler.transform(X)
@@ -131,6 +139,7 @@ class LinearProbe:
                 self._log_step(X, y)
 
             case (True, True):
+                # Otherwise, do a train/test split
                 X_train, X_test, y_train, y_test = self.tt_split(X, y)
 
                 self.scaler.partial_fit(X_train)
@@ -140,6 +149,7 @@ class LinearProbe:
                 self.model.partial_fit(X_train, y_train, classes=self.classes)
                 self._log_step(X_test, y_test)
 
+                # If early stopping is set, we check whether it's time to stop
                 if self.is_trainable:
                     self._check_early_stopping(X_test, y_test)
 
