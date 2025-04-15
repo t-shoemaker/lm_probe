@@ -129,7 +129,7 @@ class FeatureExtractor:
             If there are no features cached for the submodule
         """
         if not self.features:
-            ValueError(f"No features cached for {submodule_name}")
+            raise ValueError(f"No features cached for {submodule_name}")
 
         return self.features.get(submodule_name)
 

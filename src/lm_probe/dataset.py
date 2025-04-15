@@ -65,7 +65,7 @@ class ProbeDataset(Dataset):
             "labels": self.labels[idx],
         }
 
-    def tt_split(self, test_size: float = 0.2) -> tuple[Subset, Subset]:
+    def tt_split(self, test_size: float = 0.2) -> tuple["Subset", "Subset"]:
         """Do a random train/test split.
 
         Parameters
