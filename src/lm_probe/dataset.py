@@ -45,12 +45,17 @@ class ProbeDataset(Dataset):
             if labels is None
             else torch.as_tensor(labels, dtype=torch.int8)
         )
+        self.classes = (
+            set()
+            if labels is None
+            else set(lab.item() for lab in torch.unique(self.labels))
+        )
 
     def __repr__(self) -> str:
         """Class repr."""
         num_doc, num_tok = self.input_ids.shape
-        num_label = (
-            "None" if self.labels is None else len(torch.unique(self.labels))
+        num_class = (
+            "None" if not self.classes else len(self.classes)
         )
 
         header = f"{'ProbeDataset':-^20}"
@@ -60,7 +65,7 @@ class ProbeDataset(Dataset):
             header,
             f"{'Spans':<10}{num_doc:>{width - 10}}",
             f"{'Tokens':<10}{num_tok:>{width - 10}}",
-            f"{'Labels':<10}{num_label:>{width - 10}}",
+            f"{'Classes':<10}{num_class:>{width - 10}}",
         ]
 
         return "\n".join(repr_str)
