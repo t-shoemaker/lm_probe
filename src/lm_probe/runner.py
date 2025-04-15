@@ -32,7 +32,10 @@ class ProbeRunner:
     logger = setup_logger(__name__)
 
     def __init__(
-        self, model: "LanguageModel", probe_configs: list[ProbeConfig]
+        self,
+        model: "LanguageModel",
+        probe_configs: list[ProbeConfig],
+        remote: bool = False,
     ) -> None:
         """Initialize the runner.
 
@@ -42,9 +45,13 @@ class ProbeRunner:
             Langauge model
         prob_configs : list[ProbeConfig]
             Probe configurations
+        remote : bool
+            Whether to run the model remotely on NDIF (requires API key)
         """
         self.model: LanguageModel = model
-        self.feature_extractor: FeatureExtractor = FeatureExtractor(model)
+        self.feature_extractor: FeatureExtractor = FeatureExtractor(
+            model, remote=remote
+        )
         self.probes: list[LinearProbe] = [
             LinearProbe(config) for config in probe_configs
         ]

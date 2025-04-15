@@ -27,16 +27,19 @@ class SubmoduleFeatures:
 class FeatureExtractor:
     """Extractor for a LanguageModel's submodule features."""
 
-    def __init__(self, model: "LanguageModel") -> None:
+    def __init__(self, model: "LanguageModel", remote: bool = False) -> None:
         """Initialize the extractor.
 
         Parameters
         ----------
         model : LanguageModel
             The model
+        remote : bool
+            Whether to run the model remotely on NDIF (requires API key)
         """
         self.model = model
         self.features: dict[str, SubmoduleFeatures] = {}
+        self.remote = remote
 
     @torch.no_grad()
     def __call__(
@@ -76,7 +79,7 @@ class FeatureExtractor:
         if pool and attention_mask is None:
             raise ValueError("Attention mask required for mean pooling")
 
-        with self.model.trace(input_ids):
+        with self.model.trace(input_ids, remote=self.remote):
             for submodule_name in submodules:
                 feat = self.model.get(submodule_name).save()
                 self.features[submodule_name] = SubmoduleFeatures(
