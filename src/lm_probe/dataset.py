@@ -1,5 +1,5 @@
 import torch
-from typing import TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 from torch.utils.data import Dataset, random_split
 
@@ -14,7 +14,7 @@ class ProbeDataset(Dataset):
         self,
         input_ids: torch.Tensor,
         attention_mask: torch.Tensor,
-        labels: torch.Tensor,
+        labels: Optional[torch.Tensor | list],
     ) -> None:
         """Initialize the dataset.
 
@@ -24,7 +24,7 @@ class ProbeDataset(Dataset):
             Token input IDs with shape (num_doc, seq_len)
         attention_mask torch.Tensor
             Attention mask for the tokens with shape (num_doc, seq_len)
-        labels : torch.Tensor or list
+        labels : torch.Tensor or list or None
             Labels
 
         Raises
@@ -40,7 +40,30 @@ class ProbeDataset(Dataset):
 
         self.input_ids = input_ids
         self.attention_mask = attention_mask
-        self.labels = torch.as_tensor(labels, dtype=torch.uint8)
+        self.labels = (
+            labels
+            if labels is None
+            else torch.as_tensor(labels, dtype=torch.int8)
+        )
+
+    def __repr__(self) -> str:
+        """Class repr."""
+        num_doc, num_tok = self.input_ids.shape
+        num_label = (
+            "None" if self.labels is None else len(torch.unique(self.labels))
+        )
+
+        header = f"{'ProbeDataset':-^20}"
+        width = len(header)
+
+        repr_str = [
+            header,
+            f"{'Spans':<10}{num_doc:>{width - 10}}",
+            f"{'Tokens':<10}{num_tok:>{width - 10}}",
+            f"{'Labels':<10}{num_label:>{width - 10}}",
+        ]
+
+        return "\n".join(repr_str)
 
     def __len__(self) -> int:
         """Dataset size."""
