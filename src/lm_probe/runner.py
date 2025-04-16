@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Optional, Self
+from collections import defaultdict
+from typing import TYPE_CHECKING, Generator, Optional, Self
 
 import torch
 import numpy as np
@@ -118,11 +119,6 @@ class ProbeRunner:
         -------
         dict[str, np.ndarray]
             Output dictionary of submodule : feature pairs
-
-        Raises
-        ------
-        AssertionError
-            If probe features are not 2- or 3-dimensional
         """
         features = self.feature_extractor(
             self.submodules,
@@ -133,7 +129,7 @@ class ProbeRunner:
         )
 
         return {
-            submodule: feat.detach().cpu().numpy()
+            submodule: feat.detach().cpu().float().numpy()
             for submodule, feat in features.items()
         }
 
@@ -233,56 +229,97 @@ class ProbeRunner:
         ValueError
             If predictions weren't collected for a probe
         """
-        results: dict[str, list[BatchPredictions]] = {
-            module: [] for module in self.submodules
-        }
+        results = defaultdict(list)
 
-        # Set up a DataLoader to batch out features
+        # Collect predictions
+        for name, pred in self._iter_predictions(
+            dataset, batch_size, batch_limit
+        ):
+            results[name].append(pred)
+
+        # Calculate metrics
+        metrics_df = []
+        for probe in self.probes:
+            name = probe.submodule
+            if not results[name]:
+                raise ValueError(f"No predictions collected for {name}")
+
+            metrics = self._calculate_probe_metrics(probe, results[name])
+            metrics_df.append(metrics)
+
+        return pd.concat(metrics_df)
+
+    def _iter_predictions(
+        self,
+        dataset: ProbeDataset,
+        batch_size: int = 32,
+        batch_limit: Optional[int] = None,
+    ) -> Generator[tuple[str, BatchPredictions], None, None]:
+        """Yield predictions batch by batch.
+
+        Parameters
+        ----------
+        dataset : ProbeDataset
+            Dataset of token IDs, activation masks, and labels
+        batch_size : int
+            Batch size
+        batch_limit : None or int
+            If None, limit batches
+
+        Yields
+        ------
+        tuple[str, BatchPredictions]
+            Tuple of (submodule_name, batch_predictions)
+        """
+        # Set up a DataLoader to yield out batches
         dataloader = DataLoader(dataset, batch_size=batch_size)
 
-        # For each batch...
+        # March through each batch and get features for the submodules
         for idx, batch in enumerate(dataloader):
-            # Have we exceeded the batch limit?
             if batch_limit and idx >= batch_limit:
                 break
 
-            # Get the batch's features
             features = self.get_probe_features(
                 batch["input_ids"], batch["attention_mask"]
             )
             labels = batch["labels"].numpy()
 
-            # Make predictions for each probe
             for probe in self.probes:
                 name = probe.submodule
-                results[name].append(
-                    BatchPredictions(
-                        preds=probe.predict(features[name]),
-                        probs=probe.predict_proba(features[name]),
-                        labels=labels,
-                    )
+                yield name, BatchPredictions(
+                    preds=probe.predict(features[name]),
+                    probs=probe.predict_proba(features[name]),
+                    labels=labels,
                 )
 
-        # For each probe, calculate average predictions across all batches
-        metrics_df = []
-        for probe in self.probes:
-            name = probe.submodule
-            probe_results = results[name]
-            if not probe_results:
-                raise ValueError(f"No predictions collected for {name}")
+    def _calculate_probe_metrics(
+        self, probe: LinearProbe, batches: list[BatchPredictions]
+    ) -> pd.DataFrame:
+        """Calculate metrics for a single probe from batch results.
 
-            # Adjust original labels for pooling
-            if not self.pool:
-                y = [r.labels.reshape(-1) for r in probe_results]
-            else:
-                y = [r.labels for r in probe_results]
+        Parameters
+        ----------
+        probe : LinearProbe
+            The probe
+        batches : list[BatchPredictions]
+            Batches of features
 
-            metrics = Metrics.compute(
-                y=np.concatenate(y),
-                preds=np.concatenate([r.preds for r in probe_results]),
-                probs=np.concatenate([r.probs for r in probe_results]),
-                classes=probe.classes,
-            )
-            metrics_df.append(pd.DataFrame(metrics.to_dict(), index=[name]))
+        Returns
+        -------
+        pd.DataFrame
+            Overall metrics for all batches
+        """
+        # Adjust original labels for pooling
+        if not self.pool:
+            y = [batch.labels.reshape(-1) for batch in batches]
+        else:
+            y = [batch.labels for batch in batches]
 
-        return pd.concat(metrics_df)
+        metrics = Metrics.compute(
+            y=np.concatenate(y),
+            preds=np.concatenate([batch.preds for batch in batches]),
+            probs=np.concatenate([batch.probs for batch in batches]),
+            classes=probe.classes,
+        )
+
+        return pd.DataFrame(metrics.to_dict(), index=[probe.submodule])
