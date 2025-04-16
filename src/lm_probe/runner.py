@@ -103,6 +103,7 @@ class ProbeRunner:
         self,
         input_ids: torch.Tensor,
         attention_mask: torch.Tensor,
+        subset: list[str] = [],
     ) -> dict[str, NDArray[np.floating]]:
         """Get features from LanguageModel submodules that correspond to
         each probe.
@@ -114,14 +115,17 @@ class ProbeRunner:
         attention_mask : torch.Tensor
             Attention mask for the features' tokens with shape (batch_size,
             seq_len)
+        subset : list[str]
+            Specific submodules, retrieves all if empty list
 
         Returns
         -------
         dict[str, np.ndarray]
             Output dictionary of submodule : feature pairs
         """
+        submodules = subset if subset else self.submodules
         features = self.feature_extractor(
-            self.submodules,
+            submodules,
             input_ids,
             attention_mask=attention_mask,
             pool=self.pool,
@@ -166,22 +170,22 @@ class ProbeRunner:
             # For every batch...
             for batch in dataloader:
                 # Do we have trainable probes?
-                if not any(probe.is_trainable for probe in self.probes):
+                trainable = [
+                    probe for probe in self.probes if probe.is_trainable
+                ]
+                if not trainable:
                     break
 
                 # Get probe features for the batch
                 features = self.get_probe_features(
-                    batch["input_ids"], batch["attention_mask"]
+                    batch["input_ids"],
+                    batch["attention_mask"],
+                    [probe.submodule for probe in trainable],
                 )
                 labels = batch["labels"].numpy()
 
-                # For every probe...
-                for probe in self.probes:
-                    # Can we train?
-                    if not probe.is_trainable:
-                        continue
-
-                    # If so, take a step
+                # Take a step for every trainable probe
+                for probe in trainable:
                     probe.take_step(features[probe.submodule], labels)
 
                 batch_count += 1
