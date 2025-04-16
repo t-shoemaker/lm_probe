@@ -41,6 +41,10 @@ class FeatureExtractor:
         self.features: dict[str, SubmoduleFeatures] = {}
         self.remote = remote
 
+    def __repr__(self) -> str:
+        """Class repr."""
+        return f"Extractor for {self.model.config.model_type}"
+
     @torch.no_grad()
     def __call__(
         self,
@@ -68,7 +72,8 @@ class FeatureExtractor:
         Returns
         -------
         dict[str, torch.Tensor]
-            The features with shape (batch_size, num_doc, num_feat)
+            The features with shape (batch_size, num_tok, num_feat) or
+            (batch_size, num_feat)
 
         Raises
         ------

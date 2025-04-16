@@ -48,8 +48,7 @@ class ProbeRunner:
         remote : bool
             Whether to run the model remotely on NDIF (requires API key)
         """
-        # Initialize the LanguageModel and FeatureExtracto
-        self.model: LanguageModel = model
+        # Initialize the FeatureExtractor
         self.feature_extractor: FeatureExtractor = FeatureExtractor(
             model, remote=remote
         )
@@ -62,6 +61,14 @@ class ProbeRunner:
         self._probe_map = {
             probe.submodule: idx for idx, probe in enumerate(self.probes)
         }
+
+        # Are we pooling the features?
+        pooling = set(config.pool for config in probe_configs)
+        if len(pooling) > 1:
+            raise ValueError(
+                "Mixed values in probe pooling flags. All must match"
+            )
+        (self.pool,) = pooling
 
         # Set up metrics tracking
         self.metrics: Optional[pd.DataFrame] = None
@@ -121,7 +128,7 @@ class ProbeRunner:
             self.submodules,
             input_ids,
             attention_mask=attention_mask,
-            pool=True,
+            pool=self.pool,
             cache=False,
         )
 
@@ -264,8 +271,14 @@ class ProbeRunner:
             if not probe_results:
                 raise ValueError(f"No predictions collected for {name}")
 
+            # Adjust original labels for pooling
+            if not self.pool:
+                y = [r.labels.reshape(-1) for r in probe_results]
+            else:
+                y = [r.labels for r in probe_results]
+
             metrics = Metrics.compute(
-                y=np.concatenate([r.labels for r in probe_results]),
+                y=np.concatenate(y),
                 preds=np.concatenate([r.preds for r in probe_results]),
                 probs=np.concatenate([r.probs for r in probe_results]),
                 classes=probe.classes,

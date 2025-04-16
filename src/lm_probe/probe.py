@@ -38,6 +38,10 @@ class ProbeConfig:
         Threshold for score equivalence with early stopping
     warmup_steps : int
         Number of steps to wait before checking for early stopping
+    pool: bool
+        Whether to train on pooled (document-level) features
+    null_label : int or None
+        A null label value, which masks out token-level features
     model_kwargs : dict[str, Any]
         Model keywords
     """
@@ -50,6 +54,8 @@ class ProbeConfig:
     patience: int = 5
     threshold: float = 1e-5
     warmup_steps: int = 10
+    pool: bool = True
+    null_label: Optional[int] = None
     model_kwargs: dict[str, Any] = field(default_factory=dict)
 
 
@@ -75,6 +81,7 @@ class LinearProbe:
         # Set up probe info
         self.submodule: str = config.submodule
         self.classes: NDArray[np.integer] = np.fromiter(config.classes, int)
+        self.pool: bool = config.pool
         self.test_size: float = config.test_size
         self.tt_split: Callable = partial(
             train_test_split, test_size=config.test_size
@@ -84,6 +91,7 @@ class LinearProbe:
         self.max_steps: int = config.max_steps
         self.early_stopping: bool = config.early_stopping
         self.warmup_steps: int = config.warmup_steps
+        self.null_label: Optional[int] = config.null_label
         self.stopper: EarlyStopping = EarlyStopping(
             config.patience, False, config.threshold
         )
@@ -106,7 +114,9 @@ class LinearProbe:
         return f"Probe for {self.submodule}"
 
     def take_step(
-        self, X: NDArray[np.floating], y: NDArray[np.integer]
+        self,
+        X: NDArray[np.floating],
+        y: NDArray[np.integer],
     ) -> Self:
         """Take an update step.
 
@@ -125,6 +135,11 @@ class LinearProbe:
         if not self.is_trainable:
             self.logger.warning("Probe is no longer trainable")  # type: ignore[attr-defined]
             return self
+
+        # Are we dealing with token-level information (i.e., a FeatureExtractor
+        # didn't pool the model representations)?
+        if not self.pool:
+            X, y = self._flatten(X, y, self.null_label)
 
         # Trainable probes take two kinds of incremental steps: one that fits
         # on the entirey of a batch's data and one that does a train/test split
@@ -155,6 +170,50 @@ class LinearProbe:
 
         return self
 
+    def _flatten(
+        self,
+        X: NDArray[np.floating],
+        y: Optional[NDArray[np.integer]] = None,
+        null_label: Optional[int] = None,
+    ) -> tuple[NDArray[np.floating], Optional[NDArray[np.integer]]]:
+        """Flatten token-by-token feature/label arrays.
+
+        The `null_label` value should correspond to tokens that the probe will
+        not be trained on. It's set in `ProbeConfig`
+
+        Parameters
+        ----------
+        X : np.ndarray
+            Model features
+        y : np.ndarray or None
+            Feature labels
+        null_label : int or None
+            Null label value
+
+        """
+        if not null_label and self.steps_taken == 0:
+            self.logger.warn(
+                (
+                    "Probe %s does not have a null_value. It will train on "
+                    "features for every token. If this is intended behavior, "
+                    "this message can be ignored. If not, set null_value in "
+                    "the ProbeConfig"
+                ),
+                self.submodule,
+            )  # type: ignore[attr-defined]
+
+        # Flatten the fatures. If we only have those, we're done
+        *_, num_feat = X.shape
+        X_flat = X.reshape(-1, num_feat)
+        if (null_label is None) and (y is None):
+            return X_flat, None
+
+        # Otherwise, drop tokens outside the label target
+        y_flat = y.reshape(-1)
+        (mask,) = np.where(y_flat != self.null_label)
+
+        return X_flat[mask], y_flat[mask]
+
     def predict(self, X: NDArray[np.floating]) -> NDArray[np.integer]:
         """Predict classes.
 
@@ -168,26 +227,37 @@ class LinearProbe:
         np.ndarray
             Class predictions
         """
+        if not self.pool:
+            X, _ = self._flatten(X, None, None)
+
         scaled = self.scaler.transform(X)
         preds = self.model.predict(scaled)
 
         return preds
 
-    def predict_proba(self, X: NDArray[np.floating]) -> NDArray[np.floating]:
+    def predict_proba(
+        self, X: NDArray[np.floating], eps: float = 1e-10
+    ) -> NDArray[np.floating]:
         """Predict class probabilities.
 
         Parameters
         ----------
         X : np.ndarray
             Model features
+        eps : float
+            Epsilon offset for numerical stability
 
         Returns
         -------
         np.ndarray
             Probabilities for each class with shape (batch_size, num_class)
         """
+        if not self.pool:
+            X, _ = self._flatten(X, None, None)
+
         scaled = self.scaler.transform(X)
         probs = self.model.predict_proba(scaled)
+        probs = np.clip(probs, eps, 1.0 - eps)
 
         return probs
 
