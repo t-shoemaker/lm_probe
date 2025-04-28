@@ -54,9 +54,7 @@ class ProbeDataset(Dataset):
     def __repr__(self) -> str:
         """Class repr."""
         num_doc, num_tok = self.input_ids.shape
-        num_class = (
-            "None" if not self.classes else len(self.classes)
-        )
+        num_class = "None" if not self.classes else len(self.classes)
 
         header = f"{'ProbeDataset':-^20}"
         width = len(header)

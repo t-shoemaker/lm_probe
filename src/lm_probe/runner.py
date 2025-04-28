@@ -290,10 +290,13 @@ class ProbeRunner:
 
             for probe in self.probes:
                 name = probe.submodule
-                yield name, BatchPredictions(
-                    preds=probe.predict(features[name]),
-                    probs=probe.predict_proba(features[name]),
-                    labels=labels,
+                yield (
+                    name,
+                    BatchPredictions(
+                        preds=probe.predict(features[name]),
+                        probs=probe.predict_proba(features[name]),
+                        labels=labels,
+                    ),
                 )
 
     def _calculate_probe_metrics(
