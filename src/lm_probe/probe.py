@@ -202,17 +202,23 @@ class LinearProbe:
                 self.submodule,
             )  # type: ignore[attr-defined]
 
-        # Flatten the fatures. If we only have those, we're done
+        # Flatten the fatures
         *_, num_feat = X.shape
         X_flat = X.reshape(-1, num_feat)
-        if (null_label is None) and (y is None):
-            return X_flat, None
 
-        # Otherwise, drop tokens outside the label target
-        y_flat = y.reshape(-1)
-        (mask,) = np.where(y_flat != self.null_label)
-
-        return X_flat[mask], y_flat[mask]
+        match (y is None, null_label is None):
+            case (True, _):
+                # If y is None, return only flattened features
+                return X_flat, None
+            case (False, True):
+                # If y is not None but null_label is None, return all flattened
+                # features and labels
+                return X_flat, y.reshape(-1)
+            case (False, False):
+                # If both y and null_label are not None, filter out null labels
+                y_flat = y.reshape(-1)
+                (mask,) = np.where(y_flat != null_label)
+                return X_flat[mask], y_flat[mask]
 
     def predict(self, X: NDArray[np.floating]) -> NDArray[np.integer]:
         """Predict classes.
