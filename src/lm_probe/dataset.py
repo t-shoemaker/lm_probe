@@ -14,7 +14,7 @@ class ProbeDataset(Dataset):
         self,
         input_ids: torch.Tensor,
         attention_mask: torch.Tensor,
-        labels: Optional[torch.Tensor | list],
+        labels: Optional[torch.Tensor | list] = None,
     ) -> None:
         """Initialize the dataset.
 
@@ -41,9 +41,9 @@ class ProbeDataset(Dataset):
         self.input_ids = input_ids
         self.attention_mask = attention_mask
         self.labels = (
-            labels
-            if labels is None
-            else torch.as_tensor(labels, dtype=torch.int8)
+            torch.as_tensor(labels, dtype=torch.int8)
+            if labels is not None
+            else torch.tensor([])
         )
         self.classes = (
             set()
