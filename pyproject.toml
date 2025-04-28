@@ -15,7 +15,7 @@ platforms = ["linux-64", "osx-arm64", "osx-64"]
 
 [tool.pixi.pypi-dependencies]
 lm_probe = { path = ".", editable = true }
-nnsight = ">=0.4.5,<0.5"
+nnsight = ">=0.4.5,<1.0"
 
 [tool.pixi.dependencies]
 pytorch = ">=2.5.0,<3"
