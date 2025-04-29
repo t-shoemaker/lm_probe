@@ -38,14 +38,14 @@ class ProbeDataset(Dataset):
                 f"got {input_ids.shape=} and {attention_mask.shape=}"
             )
 
-        self.input_ids = input_ids
-        self.attention_mask = attention_mask
-        self.labels = (
+        self.input_ids: torch.Tensor = input_ids
+        self.attention_mask: torch.Tensor = attention_mask
+        self.labels: torch.Tensor = (
             torch.as_tensor(labels, dtype=torch.int8)
             if labels is not None
             else torch.tensor([])
         )
-        self.classes = (
+        self.classes: set = (
             set()
             if labels is None
             else set(lab.item() for lab in torch.unique(self.labels))

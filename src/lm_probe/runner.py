@@ -59,16 +59,18 @@ class ProbeRunner:
             LinearProbe(config) for config in probe_configs
         ]
         self.submodules: list[str] = [probe.submodule for probe in self.probes]
-        self._probe_map = {
+        self._probe_map: dict[str, int] = {
             probe.submodule: idx for idx, probe in enumerate(self.probes)
         }
 
         # Are we pooling the features?
-        pooling = set(config.pool for config in probe_configs)
+        pooling: set[bool] = set(config.pool for config in probe_configs)
         if len(pooling) > 1:
             raise ValueError(
                 "Mixed values in probe pooling flags. All must match"
             )
+
+        self.pool: bool
         (self.pool,) = pooling
 
         # Set up metrics tracking

@@ -37,9 +37,9 @@ class FeatureExtractor:
         remote : bool
             Whether to run the model remotely on NDIF (requires API key)
         """
-        self.model = model
+        self.model: "LanguageModel" = model
         self.features: dict[str, SubmoduleFeatures] = {}
-        self.remote = remote
+        self.remote: bool = remote
 
     def __repr__(self) -> str:
         """Class repr."""
