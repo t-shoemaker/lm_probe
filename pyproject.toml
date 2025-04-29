@@ -23,7 +23,12 @@ torchvision = ">=0.20.1,<0.21"
 transformers = ">=4.46.3,<5"
 sentencepiece = ">=0.2.0,<0.3"
 scikit-learn = ">=1.5.2,<2"
+
+[tool.pixi.feature.dev.dependencies]
 ipykernel = "*"
+
+[tool.pixi.environments]
+dev = ["dev"]
 
 [[tool.mypy.overrides]]
 module = "lm_probe.*"
