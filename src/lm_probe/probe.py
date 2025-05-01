@@ -241,17 +241,13 @@ class LinearProbe:
 
         return preds
 
-    def predict_proba(
-        self, X: NDArray[np.floating], eps: float = 1e-10
-    ) -> NDArray[np.floating]:
+    def predict_proba(self, X: NDArray[np.floating]) -> NDArray[np.floating]:
         """Predict class probabilities.
 
         Parameters
         ----------
         X : np.ndarray
             Model features
-        eps : float
-            Epsilon offset for numerical stability
 
         Returns
         -------
@@ -263,7 +259,6 @@ class LinearProbe:
 
         scaled = self.scaler.transform(X)
         probs = self.model.predict_proba(scaled)
-        probs = np.clip(probs, eps, 1.0 - eps)
 
         return probs
 
@@ -283,7 +278,7 @@ class LinearProbe:
             Cross-entropy loss
         """
         probs = self.predict_proba(X)
-        loss = log_loss(y, probs, labels=self.classes)
+        loss = log_loss(y, probs.astype(np.float64), labels=self.classes)
 
         return loss
 
