@@ -1,27 +1,9 @@
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
 
 import torch
 
 if TYPE_CHECKING:
     from nnsight import LanguageModel
-
-
-@dataclass
-class SubmoduleFeatures:
-    """Features from a submodule."""
-
-    name: str
-    features: torch.Tensor
-
-    @property
-    def is_tuple_output(self) -> bool:
-        """Check if the original Envoy output was a tuple of tensors."""
-        return not isinstance(self.features.shape, torch.Size)
-
-    def get_hidden_state(self) -> torch.Tensor:
-        """Get the hidden state tensor."""
-        return self.features[0] if self.is_tuple_output else self.features
 
 
 class FeatureExtractor:
@@ -38,8 +20,8 @@ class FeatureExtractor:
             Whether to run the model remotely on NDIF (requires API key)
         """
         self.model: "LanguageModel" = model
-        self.features: dict[str, SubmoduleFeatures] = {}
         self.remote: bool = remote
+        self._cache: dict[str, torch.Tensor] = {}
 
     def __repr__(self) -> str:
         """Class repr."""
@@ -81,77 +63,72 @@ class FeatureExtractor:
             If pool is True but attention_mask is None
             If features aren't 2- or 3-dimensional
         """
+        # Ensure we have what we need for pooling
         if pool and attention_mask is None:
             raise ValueError("Attention mask required for mean pooling")
 
+        # Clear the cache if asked
+        if not cache:
+            self._cache.clear()
+
         # Set up a tracer with nnsight and march through each of the model
         # submodules to extract features
+        features = {}
         with self.model.trace(input_ids, remote=self.remote):
-            for submodule_name in submodules:
-                feat = self.model.get(submodule_name).save()
-                self.features[submodule_name] = SubmoduleFeatures(
-                    name=submodule_name, features=feat
-                )
+            for name in submodules:
+                feat = self.model.get(name).save()
+                features[name] = feat
 
-        # Pluck the hidden states from each submodule feature set. This must be
-        # done outside the context manager because nnsight won't have executed
-        # the forward pass yet
-        features = {
-            submodule_name: feat.get_hidden_state()
-            for submodule_name, feat in self.features.items()
-        }
+        # Extract the hidden states from each submodule feature set. This must
+        # be done outside the context manager because nnsight won't have
+        # executed the forward pass yet
+        output = {}
+        for name, feat in features.items():
+            # Get the hidden state tensor. If the original Envoy output was a
+            # tuple of tensors, we need to do a little special handling
+            hs = feat[0] if not isinstance(feat.shape, torch.Size) else feat
+            if hs.ndim not in (2, 3):
+                raise ValueError(f"{name} has unexpected ndim={hs.ndim}")
 
-        # Are we providing features for every token?
-        if not pool:
-            return features
-
-        # Are we keeping features?
-        if not cache:
-            self.clear_features()
-
-        # Do mean pooling on the features
-        pooled_features = {}
-        for submodule_name, feat in features.items():
-            ndim = feat.ndim
-            if not (1 < ndim < 4):
-                raise ValueError(
-                    f"Features for {submodule_name} are {feat.shape}"
-                )
-
-            if ndim == 3:
+            # Are we pooling?
+            if pool and hs.ndim == 3:
                 assert attention_mask is not None
-                feat = mean_pool(feat, attention_mask.to(feat.device))
+                hs = mean_pool(hs, attention_mask.to(hs.device))
 
-            pooled_features[submodule_name] = feat
+            output[name] = hs
 
-        return pooled_features
+        # Are we caching?
+        if cache:
+            self._cache = output.copy()
 
-    def get_features(self, submodule_name: str) -> Optional[SubmoduleFeatures]:
-        """Get features by submodule name.
+        return output
+
+    def get_cached(self, name: str) -> torch.Tensor:
+        """Get cached features by submodule name.
 
         Parameters
         ----------
-        submodule_name : str
+        name : str
             Stringified submodule name
 
         Returns
         -------
-        SubmoduleFeatures, optional
+        torch.Tensor
             The features
 
         Raises
         ------
-        ValueError
+        KeyError
             If there are no features cached for the submodule
         """
-        if not self.features:
-            raise ValueError(f"No features cached for {submodule_name}")
+        try:
+            return self._cache[name]
+        except KeyError:
+            raise KeyError(f"No cached features for {name}") from None
 
-        return self.features.get(submodule_name)
-
-    def clear_features(self):
+    def clear_cache(self):
         """Clear all stored features."""
-        self.features.clear()
+        self._cache.clear()
 
 
 def mean_pool(
